@@ -1,19 +1,23 @@
+var events = require('events');
+
 var Agent = function () {
     this.lastId = 0;
 
-    // TODO: Is it effe
+    // TODO: Is it effetive way to manage mutable dictionary in V8.
     this.clients = {};
+
+    var agent = this;
 
     this.onConnected = function(client) {
 	var clientId = this.lastId += 1;
 	this.clients[clientId] = client;
+	client.id = clientId;
 
-	console.log('client connected');
+	console.log('client', clientId, 'connected');
 
-	var agent = this;
 	client.on('end', function() {
 	    delete agent.clients[clientId];
-	    console.log('client disconnected');
+	    console.log('client', clientId, 'disconnected');
 	});
 
 	// TODO: Package completeness check.
@@ -26,13 +30,18 @@ var Agent = function () {
 		return;
 	    }
 
-	    Object.keys(agent.clients).forEach(function(id) {
-		var c = agent.clients[id];
-		if (c != client)
-		    c.write(JSON.stringify(position));
-	    });
+	    agent.broadcast(position);
+	});
+    };
+
+    this.broadcast = function(message) {
+	Object.keys(this.clients).forEach(function(id) {
+	    var c = agent.clients[id];
+	    c.write(JSON.stringify(message));
 	});
     };
 };
+
+Agent.prototype.__proto__ = events.EventEmitter.prototype;
 
 exports.Agent = Agent;
